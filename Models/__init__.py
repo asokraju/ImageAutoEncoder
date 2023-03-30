@@ -77,29 +77,38 @@ def load_model(dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE,
 
 
     # load the model
-    encoder_checkpoint_path = LOGDIR + "/encoder_weights-01.index"
+    encoder_checkpoint_path = LOGDIR + "\encoder_weights-01.index"
     encoder.load_weights(encoder_checkpoint_path)
 
-    decoder_checkpoint_path = LOGDIR + "/decoder_weights-01.index"
+    decoder_checkpoint_path = LOGDIR + "\decoder_weights-01.index"
     decoder.load_weights(decoder_checkpoint_path)
     if plot:
         plt.figure(figsize=(10, 4))
-        encoded_imgs = encoder.predict(dataset.take(n))
+        images = list(dataset.take(n))[0]
+        encoded_imgs = encoder.predict(images)
         decoded_imgs = decoder.predict(encoded_imgs)
-        print(decoded_imgs.shape)
+        # print(images.shape, images[0].shape)
+        # dataset_batch = next(iter(dataset.batch(n)))
+        # print(dataset_batch.shape)
+        # encoded_imgs = encoder.predict(dataset_batch)
+        # decoded_imgs = decoder.predict(encoded_imgs)
+        # print(decoded_imgs.shape)
+        print(images[0])
+        print(decoded_imgs[0])
         for i in range(n):
             # Display original images
             ax = plt.subplot(2, n, i + 1)
             # print(list(dataset.take(1))[0])
-            plt.imshow(list(dataset.take(n))[0][i])
+            plt.imshow(images[i])
             plt.axis('off')
 
             # Display decoder-generated images
             ax = plt.subplot(2, n, i + n + 1)
             plt.imshow(decoded_imgs[i])
             plt.axis('off')
+        plt.savefig(LOGDIR+'/validation.jpg')
         plt.show()
-        plt.savefig(LOGDIR+'/validation.png')
+
 
     return encoder, decoder, vae
 
@@ -111,10 +120,10 @@ def load_model2(dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE
     vae.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE))
 
     # load the model
-    encoder_checkpoint_path = LOGDIR + "/encoder_weights"
+    encoder_checkpoint_path = LOGDIR + "\encoder_weights"
     encoder.load_weights(encoder_checkpoint_path)
 
-    decoder_checkpoint_path = LOGDIR + "/decoder_weights"
+    decoder_checkpoint_path = LOGDIR + "\decoder_weights"
     decoder.load_weights(decoder_checkpoint_path)
 
     if plot:
