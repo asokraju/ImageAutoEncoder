@@ -67,7 +67,7 @@ class BetaVAE(Model):
 
 
 
-def load_model(val_dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE, BETA, LEARNING_RATE, n=5, plot= True):
+def load_model(dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE, BETA, LEARNING_RATE, n=5, plot= True):
     #Model
     encoder = Encoder(num_conv_layers=NUM_CONV_LAYERS, latent_dim=LATENT_DIM)
     decoder = Decoder(output_size=(OUTPUT_IMAGE_SHAPE, OUTPUT_IMAGE_SHAPE, 3), num_conv_layers=NUM_CONV_LAYERS, latent_dim=LATENT_DIM)
@@ -77,20 +77,21 @@ def load_model(val_dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SH
 
 
     # load the model
-    encoder_checkpoint_path = LOGDIR + "decoder_weights-01.index"
+    encoder_checkpoint_path = LOGDIR + "/decoder_weights-01.index"
     encoder.load_weights(encoder_checkpoint_path)
 
-    decoder_checkpoint_path = LOGDIR + "decoder_weights-01.index"
+    decoder_checkpoint_path = LOGDIR + "/decoder_weights-01.index"
     decoder.load_weights(decoder_checkpoint_path)
     if plot:
         plt.figure(figsize=(10, 4))
-        encoded_imgs = encoder.predict(val_dataset.take(n))
+        encoded_imgs = encoder.predict(dataset.take(n))
         decoded_imgs = decoder.predict(encoded_imgs)
+        print(decoded_imgs.shape)
         for i in range(n):
             # Display original images
             ax = plt.subplot(2, n, i + 1)
             # print(list(dataset.take(1))[0])
-            plt.imshow(list(val_dataset.take(n))[i][0])
+            plt.imshow(list(dataset.take(n))[0][i])
             plt.axis('off')
 
             # Display decoder-generated images
