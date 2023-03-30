@@ -55,15 +55,25 @@ class BetaVAE(Model):
         recon_x = self.decoder(z)
         return recon_x, z
     
+    # def train_step(self, data):
+    #     with tf.GradientTape() as tape:
+    #         recon_x, z = self(data) # self.call(data)
+    #         reconstruction_loss = tf.reduce_mean(tf.square(data - recon_x))
+    #         kl_loss = -0.5 * self.beta * tf.reduce_mean(1 + tf.math.log(tf.square(z)) - tf.square(z))
+    #         total_loss = reconstruction_loss + kl_loss
+    #     grads = tape.gradient(total_loss, self.trainable_weights)
+    #     self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+    #     return {'loss': total_loss}
     def train_step(self, data):
         with tf.GradientTape() as tape:
             recon_x, z = self(data) # self.call(data)
-            reconstruction_loss = tf.reduce_mean(tf.square(data - recon_x))
+            reconstruction_loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(data, recon_x), axis=[1, 2])
             kl_loss = -0.5 * self.beta * tf.reduce_mean(1 + tf.math.log(tf.square(z)) - tf.square(z))
             total_loss = reconstruction_loss + kl_loss
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
         return {'loss': total_loss}
+
 
 
 
