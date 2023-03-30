@@ -2,7 +2,8 @@
 import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, Conv2D, Conv2DTranspose, Flatten, Reshape
 from tensorflow.keras.models import Model
-
+import matplotlib.pyplot as plt
+import numpy as  np
 
 class Encoder(Model):
     def __init__(self, num_conv_layers=2, latent_dim=8):
@@ -66,6 +67,40 @@ class BetaVAE(Model):
 
 
 
+def load_model(val_dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE, BETA, LEARNING_RATE, n=5, plot= True):
+    #Model
+    encoder = Encoder(num_conv_layers=NUM_CONV_LAYERS, latent_dim=LATENT_DIM)
+    decoder = Decoder(output_size=(OUTPUT_IMAGE_SHAPE, OUTPUT_IMAGE_SHAPE, 3), num_conv_layers=NUM_CONV_LAYERS, latent_dim=LATENT_DIM)
+    vae = BetaVAE(encoder=encoder, decoder=decoder, beta=BETA)
+    vae.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE))
+
+
+
+    # load the model
+    encoder_checkpoint_path = LOGDIR + "decoder_weights-01.index"
+    encoder.load_weights(encoder_checkpoint_path)
+
+    decoder_checkpoint_path = LOGDIR + "decoder_weights-01.index"
+    decoder.load_weights(decoder_checkpoint_path)
+    if plot:
+        plt.figure(figsize=(10, 4))
+        encoded_imgs = encoder.predict(val_dataset.take(n))
+        decoded_imgs = decoder.predict(encoded_imgs)
+        for i in range(n):
+            # Display original images
+            ax = plt.subplot(2, n, i + 1)
+            # print(list(dataset.take(1))[0])
+            plt.imshow(list(val_dataset.take(n))[i][0])
+            plt.axis('off')
+
+            # Display decoder-generated images
+            ax = plt.subplot(2, n, i + n + 1)
+            plt.imshow(decoded_imgs[i])
+            plt.axis('off')
+        plt.show()
+        plt.savefig(LOGDIR+'/validation.png')
+
+    return encoder, decoder, vae
 
 # # Define a custom callback for image visualization
 # class ImageVisualizationCallback(tf.keras.callbacks.Callback):

@@ -8,7 +8,7 @@ from datetime import datetime
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 
 #
-from Models import Encoder, Decoder, BetaVAE
+from Models import Encoder, Decoder, BetaVAE, load_model
 from Data import get_image_data
 #to reduce the tensorflow messages
 # tf.get_logger().setLevel('WARNING')
@@ -96,3 +96,6 @@ vae.fit(
 
 encoder.save_weights(LOGDIR + "/encoder_weights.h5")
 decoder.save_weights(LOGDIR + "/decoder_weights.h5")
+
+
+loaded_encoder, loaded_decoder, loaded_vae = load_model(val_dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE, BETA, LEARNING_RATE, n=5, plot= True)
