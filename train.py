@@ -8,7 +8,7 @@ from datetime import datetime
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 
 #
-from Models import Encoder, Decoder, BetaVAE, load_model
+from Models import Encoder, Decoder, BetaVAE, load_model, load_model2
 from Data import get_image_data
 #to reduce the tensorflow messages
 # tf.get_logger().setLevel('WARNING')
@@ -20,7 +20,7 @@ tf.get_logger().setLevel('ERROR')
 if __name__ == '__main__':
     # The directory path where your image data is stored
     # all_dirs = ['/home/kkosara/AutoDRIVE-Nigel-Dataset/fishhook_30_hz', '/home/kkosara/AutoDRIVE-Nigel-Dataset/skidpad_30_hz', '/home/kkosara/AutoDRIVE-Nigel-Dataset/slalom_30_hz']
-    DATA_DIR = ['Data']
+    DATA_DIR = [r'C:\Users\kkosara\AutoDRIVE-Nigel-Dataset\data']
     OUTPUT_IMAGE_SHAPE = 200
     NUM_CONV_LAYERS = 3
     assert OUTPUT_IMAGE_SHAPE%(2**NUM_CONV_LAYERS)==0, "OUTPUT_IMAGE_SHAPE should be a multiple of 2^NUM_CONV_LAYERS, i.e. OUTPUT_IMAGE_SHAPE%(2**NUM_CONV_LAYERS)==0. This will ensure the Encoder and Decoder networks to have mirror image layers"
@@ -30,10 +30,10 @@ if __name__ == '__main__':
     AUTOTUNE = tf.data.AUTOTUNE
     LEARNING_RATE = 1e-4
     PATIENCE = 10
-    EPOCHS  = 1
+    EPOCHS  = 10
     TRAIN_SPLIT = 0.8
     LOGDIR = os.path.join("logs", datetime.now().strftime("%Y%m%d-%H%M%S"))
-    NO_IMAGES_TO_PLOT = 2
+    NO_IMAGES_TO_PLOT = 10
     assert NO_IMAGES_TO_PLOT<BATCH_SIZE, "NO_IMAGES_TO_PLOT should be less than the batch size BATCH_SIZE"
 
     all_image_paths = get_image_data(DATA_DIR)
@@ -100,4 +100,4 @@ if __name__ == '__main__':
     decoder.save_weights(LOGDIR + "/decoder_weights.h5")
 
     assert NO_IMAGES_TO_PLOT<image_count, "NO_IMAGES_TO_PLOT should be less than the avaialble images image_count"
-    loaded_encoder, loaded_decoder, loaded_vae = load_model(train_dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE, BETA, LEARNING_RATE, n=NO_IMAGES_TO_PLOT, plot= True)
+    loaded_encoder, loaded_decoder, loaded_vae = load_model2(train_dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE, BETA, LEARNING_RATE, n=NO_IMAGES_TO_PLOT, plot= True)

@@ -57,7 +57,7 @@ class BetaVAE(Model):
     
     def train_step(self, data):
         with tf.GradientTape() as tape:
-            recon_x, z = self(data)
+            recon_x, z = self(data) # self.call(data)
             reconstruction_loss = tf.reduce_mean(tf.square(data - recon_x))
             kl_loss = -0.5 * self.beta * tf.reduce_mean(1 + tf.math.log(tf.square(z)) - tf.square(z))
             total_loss = reconstruction_loss + kl_loss
@@ -77,7 +77,7 @@ def load_model(dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE,
 
 
     # load the model
-    encoder_checkpoint_path = LOGDIR + "/decoder_weights-01.index"
+    encoder_checkpoint_path = LOGDIR + "/encoder_weights-01.index"
     encoder.load_weights(encoder_checkpoint_path)
 
     decoder_checkpoint_path = LOGDIR + "/decoder_weights-01.index"
@@ -92,6 +92,41 @@ def load_model(dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE,
             ax = plt.subplot(2, n, i + 1)
             # print(list(dataset.take(1))[0])
             plt.imshow(list(dataset.take(n))[0][i])
+            plt.axis('off')
+
+            # Display decoder-generated images
+            ax = plt.subplot(2, n, i + n + 1)
+            plt.imshow(decoded_imgs[i])
+            plt.axis('off')
+        plt.show()
+        plt.savefig(LOGDIR+'/validation.png')
+
+    return encoder, decoder, vae
+
+def load_model2(dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE, BETA, LEARNING_RATE, n=5, plot= True):
+    #Model
+    encoder = Encoder(num_conv_layers=NUM_CONV_LAYERS, latent_dim=LATENT_DIM)
+    decoder = Decoder(output_size=(OUTPUT_IMAGE_SHAPE, OUTPUT_IMAGE_SHAPE, 3), num_conv_layers=NUM_CONV_LAYERS, latent_dim=LATENT_DIM)
+    vae = BetaVAE(encoder=encoder, decoder=decoder, beta=BETA)
+    vae.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE))
+
+    # load the model
+    encoder_checkpoint_path = LOGDIR + "/encoder_weights"
+    encoder.load_weights(encoder_checkpoint_path)
+
+    decoder_checkpoint_path = LOGDIR + "/decoder_weights"
+    decoder.load_weights(decoder_checkpoint_path)
+
+    if plot:
+        plt.figure(figsize=(10, 4))
+        dataset_batch = next(iter(dataset.batch(n)))
+        encoded_imgs = encoder.predict(dataset_batch)
+        decoded_imgs = decoder.predict(encoded_imgs)
+        print(decoded_imgs.shape)
+        for i in range(n):
+            # Display original images
+            ax = plt.subplot(2, n, i + 1)
+            plt.imshow(dataset_batch[i])
             plt.axis('off')
 
             # Display decoder-generated images
