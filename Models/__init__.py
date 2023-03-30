@@ -44,12 +44,12 @@ class Decoder(Model):
         return x
 
 class BetaVAE(Model):
-    def __init__(self, encoder, decoder, beta=4.0):
+    def __init__(self, encoder, decoder, beta=4.0, mse_recon_ratio=0.5):
         super(BetaVAE, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.beta = beta
-        
+        self.mse_recon_ratio = mse_recon_ratio
     def call(self, x):
         z = self.encoder(x)
         recon_x = self.decoder(z)
@@ -67,7 +67,9 @@ class BetaVAE(Model):
     def train_step(self, data):
         with tf.GradientTape() as tape:
             recon_x, z = self(data) # self.call(data)
-            reconstruction_loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(data, recon_x), axis=[1, 2])
+            mse_reconstruction_loss = tf.reduce_mean(tf.square(data - recon_x))
+            ce_reconstruction_loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(data, recon_x), axis=[1, 2])
+            reconstruction_loss = self.mse_recon_ratio * mse_reconstruction_loss + (1 - self.mse_reconstruction_loss) * ce_reconstruction_loss
             kl_loss = -0.5 * self.beta * tf.reduce_mean(1 + tf.math.log(tf.square(z)) - tf.square(z))
             total_loss = reconstruction_loss + kl_loss
         grads = tape.gradient(total_loss, self.trainable_weights)
