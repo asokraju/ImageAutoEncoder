@@ -282,47 +282,52 @@ def load_model(dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE,
 
     return encoder, decoder, vae
 
-def load_model_vae(dataset, LOGDIR, INPUT_SHAPE, LATENT_DIM, FILTERS, DENSE_LAYER_DIM, LEARNING_RATE, n=5, plot= True):
+def load_model_vae(dataset, LOGDIR, encoder, decoder, vae, n=5, plot= True):
     
     
-    #Model
-    encoder = encoder_model(INPUT_SHAPE, FILTERS, DENSE_LAYER_DIM, LATENT_DIM)
-    decoder = decoder_model(INPUT_SHAPE, FILTERS, LATENT_DIM)
-    vae = VAE(encoder=encoder, decoder=decoder)
-    vae.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE))
+    # #Model
+    # encoder = tf.keras.saving.load_model(LOGDIR +"/encoder") #encoder_model(INPUT_SHAPE, FILTERS, DENSE_LAYER_DIM, LATENT_DIM)
+    # decoder = tf.keras.saving.load_model(LOGDIR +"/decoder") #decoder_model(INPUT_SHAPE, FILTERS, LATENT_DIM)
+    # vae = tf.keras.saving.load_model(LOGDIR +"/vae") #VAE(encoder=encoder, decoder=decoder)
+    # vae.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE))
 
 
 
-    # load the model
-    encoder_checkpoint_path = LOGDIR + "\encoder_weights-01.index"
-    encoder.load_weights(encoder_checkpoint_path)
+    # # load the model
+    # encoder_checkpoint_path = LOGDIR + "\encoder_weights-01.index"
+    # encoder.load_weights(encoder_checkpoint_path)
 
-    decoder_checkpoint_path = LOGDIR + "\decoder_weights-01.index"
-    decoder.load_weights(decoder_checkpoint_path)
+    # decoder_checkpoint_path = LOGDIR + "\decoder_weights-01.index"
+    # decoder.load_weights(decoder_checkpoint_path)
     if plot:
         plt.figure(figsize=(10, 4))
         images = list(dataset.take(n))[0]
-        encoded_imgs = encoder.predict(images)
-        decoded_imgs = decoder.predict(encoded_imgs)
+        # images = np.expand_dims(images, axis=0)  
+        print("images shape:", images.shape)
+        encoded_imgs = encoder.predict(np.expand_dims(images, axis=0) )
+        print(encoded_imgs, encoded_imgs[0].shape)
+        decoded_imgs = [decoder.predict(encoded_img) for encoded_img in encoded_imgs ]
+        print("no of decoded_imgs", len(decoded_imgs), decoded_imgs[0].shape)
         # print(images.shape, images[0].shape)
         # dataset_batch = next(iter(dataset.batch(n)))
         # print(dataset_batch.shape)
         # encoded_imgs = encoder.predict(dataset_batch)
         # decoded_imgs = decoder.predict(encoded_imgs)
         # print(decoded_imgs.shape)
-        print(images[0])
         print(decoded_imgs[0])
         for i in range(n):
-            # Display original images
-            ax = plt.subplot(2, n, i + 1)
-            # print(list(dataset.take(1))[0])
             plt.imshow(images[i])
-            plt.axis('off')
+            # plt.imshow(np.squeeze(decoded_imgs[i]))
+            # # Display original images
+            # ax = plt.subplot(2, n, i + 1)
+            # # print(list(dataset.take(1))[0])
+            # plt.imshow(images[i])
+            # plt.axis('off')
 
-            # Display decoder-generated images
-            ax = plt.subplot(2, n, i + n + 1)
-            plt.imshow(decoded_imgs[i])
-            plt.axis('off')
+            # # Display decoder-generated images
+            # ax = plt.subplot(2, n, i + n + 1)
+            # plt.imshow(np.squeeze(decoded_imgs[i]))
+            # plt.axis('off')
         plt.savefig(LOGDIR+'/validation.jpg')
         plt.show()
 

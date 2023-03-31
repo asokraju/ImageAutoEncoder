@@ -20,7 +20,7 @@ tf.get_logger().setLevel('ERROR')
 if __name__ == '__main__':
     # The directory path where your image data is stored
     # all_dirs = ['/home/kkosara/AutoDRIVE-Nigel-Dataset/fishhook_30_hz', '/home/kkosara/AutoDRIVE-Nigel-Dataset/skidpad_30_hz', '/home/kkosara/AutoDRIVE-Nigel-Dataset/slalom_30_hz']
-    DATA_DIR = [r'C:\Users\kkosara\AutoDRIVE-Nigel-Dataset\data'] #['Data'] #
+    DATA_DIR =  ['Data'] #[r'C:\Users\kkosara\AutoDRIVE-Nigel-Dataset\data']
     OUTPUT_IMAGE_SHAPE = 200
     INPUT_SHAPE = (OUTPUT_IMAGE_SHAPE, OUTPUT_IMAGE_SHAPE, 3)
     FILTERS = [8, 16]
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     AUTOTUNE = tf.data.AUTOTUNE
     LEARNING_RATE = 1e-4
     PATIENCE = 10
-    EPOCHS  = 10
+    EPOCHS  = 2
     TRAIN_SPLIT = 0.8
     LOGDIR = os.path.join("logs", datetime.now().strftime("%Y%m%d-%H%M%S"))
     NO_IMAGES_TO_PLOT = 4
@@ -102,9 +102,11 @@ if __name__ == '__main__':
     )
     
 
-    encoder.save_weights(LOGDIR + "/encoder_weights.h5")
-    decoder.save_weights(LOGDIR + "/decoder_weights.h5")
+    encoder.save(LOGDIR +"/encoder", overwrite=True, save_format=None)
+    decoder.save(LOGDIR +"/decoder", overwrite=True, save_format=None)
+    vae.save(LOGDIR +"/vae", overwrite=True, save_format=None)
+
 
     assert NO_IMAGES_TO_PLOT<image_count, "NO_IMAGES_TO_PLOT should be less than the avaialble images image_count"
-    loaded_encoder, loaded_decoder, loaded_vae = load_model_vae(dataset, LOGDIR, INPUT_SHAPE, LATENT_DIM, FILTERS, DENSE_LAYER_DIM, LEARNING_RATE, n=5, plot= True)
+    # loaded_encoder, loaded_decoder, loaded_vae = load_model_vae(dataset, LOGDIR, encoder, decoder, vae, n=2, plot= True)
     
