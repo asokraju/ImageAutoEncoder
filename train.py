@@ -89,12 +89,13 @@ if __name__ == '__main__':
 
     # Train the model with callbacks
     # vae.fit(train_dataset, epochs=100, validation_data=val_dataset, callbacks=[checkpoint_callback, early_stop_callback])
-    vae.fit(
+    history = vae.fit(
         train_dataset,
         epochs=EPOCHS,
         validation_data=val_dataset,
         callbacks=[tensorboard_callback, early_stopping_callback, model_checkpoint_callback, checkpoint_encoder, checkpoint_decoder],
     )
+    
 
     encoder.save_weights(LOGDIR + "/encoder_weights.h5")
     decoder.save_weights(LOGDIR + "/decoder_weights.h5")

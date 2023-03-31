@@ -1,9 +1,167 @@
 
 import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
 from tensorflow.keras.layers import Input, Dense, Conv2D, Conv2DTranspose, Flatten, Reshape
 from tensorflow.keras.models import Model
 import matplotlib.pyplot as plt
 import numpy as  np
+
+
+# Sampling layer
+class Sampling(layers.Layer):
+    "used to sample a vector in latent space with learned mean - z_mean and (log) variance - z_log_var"
+    def call(self, inputs):
+        z_mean, z_log_var = inputs
+        batch_size = tf.shape(z_mean)[0]
+        vec_len = tf.shape(z_mean)[1]
+        epsilon = tf.keras.backend.random_normal(shape=(batch_size, vec_len))
+        return z_mean + tf.exp(0.5 * z_log_var) * epsilon
+    
+
+# Define encoder model
+def encoder_model(input_shape, filters, dense_layer_dim, latent_dim):
+    # Create input layer
+    encoder_inputs = keras.Input(shape=input_shape)
+    
+    # Add convolutional layers with specified number of filters and activation function
+    x = layers.Conv2D(filters[0], 3, activation="relu", strides=2, padding="same")(encoder_inputs)
+    
+    # Add additional convolutional layers with specified number of filters and activation function
+    mid_layers = [layers.Conv2D(f, 3, activation="relu", strides=2, padding="same") for f in filters[1:]]
+    for mid_layer in mid_layers:
+        x = mid_layer(x)
+    
+    # Flatten convolutional output to prepare for dense layers
+    x = layers.Flatten()(x)
+    
+    # Add dense layer with specified number of neurons and activation function
+    x = layers.Dense(dense_layer_dim, activation='relu')(x)
+    
+    # Add output layers for latent space (mean and variance) and sample from this space
+    z_mean = layers.Dense(latent_dim, name = "z_mean")(x)
+    z_log_var = layers.Dense(latent_dim, name="z_log_var")(x)
+    z = Sampling()([z_mean, z_log_var])
+    
+    # Create encoder model
+    return keras.Model(encoder_inputs, [z_mean, z_log_var, z], name='encoder')
+
+# decoder
+def decoder_model(output_shape, filters, latent_dim):
+    # calculate dimensions of first convolutional layer based on output shape and number of filters
+    num_conv_layers = len(filters)
+    first_layer_dim = (output_shape[0]//(2**num_conv_layers), output_shape[1]//(2**num_conv_layers), 32 * (2**(num_conv_layers-1)))
+    
+    """
+    Example: 
+    If output_shape = (28, 28, 1) and filters = [32, 64], then:
+    num_conv_layers = 2
+    first_layer_dim = (28//4, 28//4, 32*2) = (7, 7, 64)
+    """
+
+    # define input layer for the latent vector
+    latent_inputs = keras.Input(shape=(latent_dim,))
+    
+    # feed latent vector through a dense layer with ReLU activation
+    x = layers.Dense(first_layer_dim[0] * first_layer_dim[1] * first_layer_dim[2], activation="relu")(latent_inputs)
+    
+    # reshape output from dense layer to match dimensions of first convolutional layer
+    x = layers.Reshape(first_layer_dim)(x)
+    
+    # apply series of transpose convolutional layers with ReLU activation and same padding
+    # filters are applied in reverse order compared to the encoder
+    mid_layers = [layers.Conv2DTranspose(f, 3, activation="relu", strides=2, padding="same") for f in filters[::-1]]
+    for mid_layer in mid_layers:
+        x = mid_layer(x)
+    
+    # apply final convolutional layer with sigmoid activation to output reconstructed image
+    decoder_outputs = layers.Conv2DTranspose(output_shape[2], 3, activation="sigmoid", padding="same")(x)
+    
+    # create and return Keras model with latent vector as input and reconstructed image as output
+    return keras.Model(latent_inputs, decoder_outputs, name="decoder")
+
+
+class VAE(keras.Model):
+    def __init__(self, encoder, decoder, **kwargs):
+        super().__init__(**kwargs)
+        self.encoder = encoder
+        self.decoder = decoder
+        self.total_loss_tracker = keras.metrics.Mean(name="total_loss")
+        self.reconstruction_loss_tracker = keras.metrics.Mean(
+            name="reconstruction_loss"
+        )
+        self.kl_loss_tracker = keras.metrics.Mean(name="kl_loss")
+
+    @property
+    def metrics(self):
+        return [
+            self.total_loss_tracker,
+            self.reconstruction_loss_tracker,
+            self.kl_loss_tracker,
+        ]
+    def call(self, x):
+        z_mean, z_log_var, z = self.encoder(x)
+        reconstruction = self.decoder(z)
+        return z_mean, z_log_var, z, reconstruction
+
+    def train_step(self, data):
+        with tf.GradientTape() as tape:
+            # z_mean, z_log_var, z = self.encoder(data)
+            # reconstruction = self.decoder(z)
+            z_mean, z_log_var, z, reconstruction = self(data)
+            reconstruction_loss = tf.reduce_mean(
+                tf.reduce_sum(
+                    keras.losses.binary_crossentropy(data, reconstruction), axis=(1, 2)
+                )
+            )
+            kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
+            kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
+            total_loss = reconstruction_loss + kl_loss
+        grads = tape.gradient(total_loss, self.trainable_weights)
+        self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+        self.total_loss_tracker.update_state(total_loss)
+        self.reconstruction_loss_tracker.update_state(reconstruction_loss)
+        self.kl_loss_tracker.update_state(kl_loss)
+        return {
+            "loss": self.total_loss_tracker.result(),
+            "reconstruction_loss": self.reconstruction_loss_tracker.result(),
+            "kl_loss": self.kl_loss_tracker.result(),
+        }
+
+
+def plot_latent_space(vae, digit_size=200, scale=1, n=3, figsize=30):
+    # display a n*n 2D manifold of digits
+    # digit_size = 28
+    # scale = 1.0
+    figure = np.zeros((digit_size * n, digit_size * n))
+    # linearly spaced coordinates corresponding to the 2D plot
+    # of digit classes in the latent space
+    grid_x = np.linspace(-scale, scale, n)
+    grid_y = np.linspace(-scale, scale, n)[::-1]
+
+    for i, yi in enumerate(grid_y):
+        for j, xi in enumerate(grid_x):
+            z_sample = np.array([[xi, yi]])
+            x_decoded = vae.decoder.predict(z_sample)
+            digit = x_decoded[0].reshape(digit_size, digit_size)
+            figure[
+                i * digit_size : (i + 1) * digit_size,
+                j * digit_size : (j + 1) * digit_size,
+            ] = digit
+
+    plt.figure(figsize=(figsize, figsize))
+    start_range = digit_size // 2
+    end_range = n * digit_size + start_range
+    pixel_range = np.arange(start_range, end_range, digit_size)
+    sample_range_x = np.round(grid_x, 1)
+    sample_range_y = np.round(grid_y, 1)
+    plt.xticks(pixel_range, sample_range_x)
+    plt.yticks(pixel_range, sample_range_y)
+    plt.xlabel("z[0]")
+    plt.ylabel("z[1]")
+    plt.imshow(figure, cmap="Greys_r")
+    plt.show()
+
 
 class Encoder(Model):
     def __init__(self, num_conv_layers=2, latent_dim=8):
@@ -124,40 +282,53 @@ def load_model(dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE,
 
     return encoder, decoder, vae
 
-def load_model2(dataset, LOGDIR, NUM_CONV_LAYERS, LATENT_DIM, OUTPUT_IMAGE_SHAPE, BETA, LEARNING_RATE, n=5, plot= True):
+def load_model_vae(dataset, LOGDIR, INPUT_SHAPE, LATENT_DIM, FILTERS, DENSE_LAYER_DIM, LEARNING_RATE, n=5, plot= True):
+    
+    
     #Model
-    encoder = Encoder(num_conv_layers=NUM_CONV_LAYERS, latent_dim=LATENT_DIM)
-    decoder = Decoder(output_size=(OUTPUT_IMAGE_SHAPE, OUTPUT_IMAGE_SHAPE, 3), num_conv_layers=NUM_CONV_LAYERS, latent_dim=LATENT_DIM)
-    vae = BetaVAE(encoder=encoder, decoder=decoder, beta=BETA)
+    encoder = encoder_model(INPUT_SHAPE, FILTERS, DENSE_LAYER_DIM, LATENT_DIM)
+    decoder = decoder_model(INPUT_SHAPE, FILTERS, LATENT_DIM)
+    vae = VAE(encoder=encoder, decoder=decoder)
     vae.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE))
 
+
+
     # load the model
-    encoder_checkpoint_path = LOGDIR + "\encoder_weights"
+    encoder_checkpoint_path = LOGDIR + "\encoder_weights-01.index"
     encoder.load_weights(encoder_checkpoint_path)
 
-    decoder_checkpoint_path = LOGDIR + "\decoder_weights"
+    decoder_checkpoint_path = LOGDIR + "\decoder_weights-01.index"
     decoder.load_weights(decoder_checkpoint_path)
-
     if plot:
         plt.figure(figsize=(10, 4))
-        dataset_batch = next(iter(dataset.batch(n)))
-        encoded_imgs = encoder.predict(dataset_batch)
+        images = list(dataset.take(n))[0]
+        encoded_imgs = encoder.predict(images)
         decoded_imgs = decoder.predict(encoded_imgs)
-        print(decoded_imgs.shape)
+        # print(images.shape, images[0].shape)
+        # dataset_batch = next(iter(dataset.batch(n)))
+        # print(dataset_batch.shape)
+        # encoded_imgs = encoder.predict(dataset_batch)
+        # decoded_imgs = decoder.predict(encoded_imgs)
+        # print(decoded_imgs.shape)
+        print(images[0])
+        print(decoded_imgs[0])
         for i in range(n):
             # Display original images
             ax = plt.subplot(2, n, i + 1)
-            plt.imshow(dataset_batch[i])
+            # print(list(dataset.take(1))[0])
+            plt.imshow(images[i])
             plt.axis('off')
 
             # Display decoder-generated images
             ax = plt.subplot(2, n, i + n + 1)
             plt.imshow(decoded_imgs[i])
             plt.axis('off')
+        plt.savefig(LOGDIR+'/validation.jpg')
         plt.show()
-        plt.savefig(LOGDIR+'/validation.png')
+
 
     return encoder, decoder, vae
+
 
 # # Define a custom callback for image visualization
 # class ImageVisualizationCallback(tf.keras.callbacks.Callback):
