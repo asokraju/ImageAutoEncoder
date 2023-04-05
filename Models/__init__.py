@@ -2,7 +2,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.layers import Input, Dense, Conv2D, Conv2DTranspose, Flatten, Reshape
+from tensorflow.keras.layers import Input, Dense, Conv2D, Conv2DTranspose, Flatten, Reshape, MaxPooling2D, UpSampling2D, BatchNormalization
 from tensorflow.keras.models import Model
 import matplotlib.pyplot as plt
 import numpy as  np
@@ -25,12 +25,13 @@ def encoder_model(input_shape, filters, dense_layer_dim, latent_dim):
     encoder_inputs = keras.Input(shape=input_shape)
     
     # Add convolutional layers with specified number of filters and activation function
-    x = layers.Conv2D(filters[0], 3, activation="relu", strides=2, padding="same")(encoder_inputs)
-    
+    x = layers.Conv2D(filters[0], (3,3), activation="relu", strides=2, padding="same")(encoder_inputs)
+    x = MaxPooling2D((2, 2), padding="same")(x)
     # Add additional convolutional layers with specified number of filters and activation function
     mid_layers = [layers.Conv2D(f, 3, activation="relu", strides=2, padding="same") for f in filters[1:]]
     for mid_layer in mid_layers:
         x = mid_layer(x)
+        x = MaxPooling2D((2, 2), padding="same")(x)
     
     # Flatten convolutional output to prepare for dense layers
     x = layers.Flatten()(x)
@@ -47,38 +48,36 @@ def encoder_model(input_shape, filters, dense_layer_dim, latent_dim):
     return keras.Model(encoder_inputs, [z_mean, z_log_var, z], name='encoder')
 
 # decoder
-def decoder_model(output_shape, filters, latent_dim):
-    # calculate dimensions of first convolutional layer based on output shape and number of filters
-    num_conv_layers = len(filters)
-    first_layer_dim = (output_shape[0]//(2**num_conv_layers), output_shape[1]//(2**num_conv_layers), 32 * (2**(num_conv_layers-1)))
-    
-    """
-    Example: 
-    If output_shape = (28, 28, 1) and filters = [32, 64], then:
-    num_conv_layers = 2
-    first_layer_dim = (28//4, 28//4, 32*2) = (7, 7, 64)
-    """
-
+def decoder_model(output_shape, filters, dense_layer_dim, latent_dim):
     # define input layer for the latent vector
     latent_inputs = keras.Input(shape=(latent_dim,))
     
+    x = layers.Dense(dense_layer_dim, activation='relu')(latent_inputs)
+
+    # filters are applied in reverse order compared to the encoder
+    filters_reverse = filters[::-1]
+    # calculate dimensions of first convolutional layer based on output shape and number of filters
+    num_conv_layers = len(filters)
+    first_layer_dim = (output_shape[0]//(2**(2*num_conv_layers)), output_shape[1]//(2**(2*num_conv_layers)), filters_reverse[0])
+
     # feed latent vector through a dense layer with ReLU activation
-    x = layers.Dense(first_layer_dim[0] * first_layer_dim[1] * first_layer_dim[2], activation="relu")(latent_inputs)
-    
+    # note that we apply the first filter in the form of dense and reshape it
+    x = layers.Dense(first_layer_dim[0] * first_layer_dim[1] * first_layer_dim[2], activation="relu")(x)
     # reshape output from dense layer to match dimensions of first convolutional layer
     x = layers.Reshape(first_layer_dim)(x)
-    
-    # apply series of transpose convolutional layers with ReLU activation and same padding
-    # filters are applied in reverse order compared to the encoder
-    mid_layers = [layers.Conv2DTranspose(f, 3, activation="relu", strides=2, padding="same") for f in filters[::-1]]
+    x = UpSampling2D((2, 2))(x)
+    # apply series of transpose convolutional layers with ReLU activation and same padding and Upsampling
+    mid_layers = [layers.Conv2DTranspose(f, 3, activation="relu", strides=2, padding="same") for f in filters_reverse[1:]]
     for mid_layer in mid_layers:
         x = mid_layer(x)
+        x = UpSampling2D((2, 2))(x)
     
     # apply final convolutional layer with sigmoid activation to output reconstructed image
-    decoder_outputs = layers.Conv2DTranspose(output_shape[2], 3, activation="sigmoid", padding="same")(x)
+    decoder_outputs = layers.Conv2DTranspose(output_shape[2], 3,strides=2, activation="sigmoid", padding="same")(x)
     
     # create and return Keras model with latent vector as input and reconstructed image as output
     return keras.Model(latent_inputs, decoder_outputs, name="decoder")
+
 
 
 class VAE(keras.Model):

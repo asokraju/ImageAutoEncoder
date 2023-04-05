@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
     #Model
     encoder = encoder_model(INPUT_SHAPE, FILTERS, DENSE_LAYER_DIM, LATENT_DIM)
-    decoder = decoder_model(INPUT_SHAPE, FILTERS, LATENT_DIM)
+    decoder = decoder_model(INPUT_SHAPE, FILTERS, DENSE_LAYER_DIM, LATENT_DIM)
     print(encoder.summary())
     print(decoder.summary())
     vae = VAE(encoder=encoder, decoder=decoder)
