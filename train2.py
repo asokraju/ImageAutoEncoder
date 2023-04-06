@@ -21,13 +21,13 @@ if __name__ == '__main__':
     # The directory path where your image data is stored
     # all_dirs = ['/home/kkosara/AutoDRIVE-Nigel-Dataset/fishhook_30_hz', '/home/kkosara/AutoDRIVE-Nigel-Dataset/skidpad_30_hz', '/home/kkosara/AutoDRIVE-Nigel-Dataset/slalom_30_hz']
     DATA_DIR =  ['Data'] #[r'C:\Users\kkosara\AutoDRIVE-Nigel-Dataset\data']
-    OUTPUT_IMAGE_SHAPE = 200
+    OUTPUT_IMAGE_SHAPE = 400
     INPUT_SHAPE = (OUTPUT_IMAGE_SHAPE, OUTPUT_IMAGE_SHAPE, 3)
     FILTERS = [8, 16]
     NUM_CONV_LAYERS = len(FILTERS)
     assert OUTPUT_IMAGE_SHAPE%(2**NUM_CONV_LAYERS)==0, "OUTPUT_IMAGE_SHAPE should be a multiple of 2^NUM_CONV_LAYERS, i.e. OUTPUT_IMAGE_SHAPE%(2**NUM_CONV_LAYERS)==0. This will ensure the Encoder and Decoder networks to have mirror image layers"
     DENSE_LAYER_DIM = 32
-    LATENT_DIM = 4
+    LATENT_DIM = 16
     BETA = 1.0
     BATCH_SIZE = 100
     AUTOTUNE = tf.data.AUTOTUNE
