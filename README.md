@@ -12,7 +12,7 @@ To get started with this repository, simply follow these steps:
     Clone this repository to your local machine.
     Dump all of your image data into the Data folder. The images should be in JPEG format.
     Install the necessary Python libraries. The required libraries are listed in the requirements.txt file.
-    Run train.py to train the VAE on your image data. The trained model will be saved to disk as vae.h5.
+    Run train.py to train the VAE on your image data. The trained model will be saved to logs folder with date-time stamps.
 
 # Results
 
