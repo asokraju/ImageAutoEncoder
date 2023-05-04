@@ -25,6 +25,3 @@ Example of reconstructed images
 
 In the image above, you can see the original post-compressed (56x56 pixel) image on the left and the predicted image on the right. The latent space for the image is of dimension 5.
 
-# Contributing
-
-We hope this repository can serve as a starting point for others interested in building image autoencoders for autonomous vehicle applications. Please feel free to contribute to this project or use it as a reference for your own work. If you have any questions or suggestions, please open an issue on GitHub and we'll do our best to help you out.
