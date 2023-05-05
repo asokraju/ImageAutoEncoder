@@ -74,9 +74,19 @@ if __name__ == '__main__':
         image = tf.cast(image, tf.float32) / 255.0
         print(image.shape)
         return image
+    
     dataset = dataset.map(load_and_preprocess_image)
-    dataset = dataset.batch(BATCH_SIZE)
-    dataset = dataset.prefetch(buffer_size=AUTOTUNE)
+    # Split the dataset into training and validation sets
+    train_dataset = dataset.take(int(TRAIN_SPLIT * image_count))
+    val_dataset = dataset.take(int((1-TRAIN_SPLIT) * image_count))
+    # train_dataset = train_dataset.shuffle(buffer_size=500, seed=42)
+    train_dataset = train_dataset.shuffle(buffer_size=500, seed=42)
+    train_dataset = train_dataset.batch(BATCH_SIZE)
+    train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
+
+    val_dataset = val_dataset.shuffle(buffer_size=500, seed=42)
+    val_dataset = val_dataset.batch(BATCH_SIZE)
+    val_dataset = val_dataset.prefetch(buffer_size=AUTOTUNE)
 
     encoder, encoder_layers_dim = encoder_model_gs(input_shape = INPUT_SHAPE, filters=FILTERS, dense_layer_dim=DENSE_LAYER_DIM, latent_dim=LATENT_DIM)
     print(encoder.summary())
@@ -94,10 +104,10 @@ if __name__ == '__main__':
     model_checkpoint_callback = ModelCheckpoint(filepath=LOGDIR + "/vae-{epoch:02d}", save_best_only=True, save_format="tf")
     checkpoint_encoder = ModelCheckpoint(filepath=LOGDIR + "/encoder_weights-{epoch:02d}", save_weights_only=True, save_best_only=True)
     checkpoint_decoder = ModelCheckpoint(filepath=LOGDIR + "/decoder_weights-{epoch:02d}", save_weights_only=True, save_best_only=True)
-    vae_callback = VAECallback(vae, dataset.take(10),log_dir=LOGDIR,)
+    vae_callback = VAECallback(vae, val_dataset,log_dir=LOGDIR,)
 
     history = vae.fit(
-        dataset,
+        train_dataset,
         epochs=EPOCHS,
         callbacks=[vae_callback, tensorboard_callback, early_stopping_callback, model_checkpoint_callback, checkpoint_encoder, checkpoint_decoder],
     )

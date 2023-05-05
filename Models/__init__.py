@@ -225,7 +225,7 @@ class VAECallback(tf.keras.callbacks.Callback):
 
         # Plot the original and reconstructed images side by side
         plt.figure(figsize=(10, 20))
-        for i in range(10):
+        for i in range(self.n):
             plt.subplot(10, 2, 2*i+1)
             plt.imshow(test_batch[i], cmap='gray')
             plt.axis('off')
