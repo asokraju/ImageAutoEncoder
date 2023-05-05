@@ -12,7 +12,7 @@ To get started with this repository, simply follow these steps:
     Clone this repository to your local machine.
     Dump all of your image data into the Data folder. The images should be in JPEG format.
     Install the necessary Python libraries. The required libraries are listed in the requirements.txt file.
-    Run train.py to train the VAE on your image data. The trained model will be saved to disk as vae.h5.
+    Run train.py to train the VAE on your image data. The trained model will be saved to logs folder with date-time stamps.
 
 # Results
 
@@ -25,6 +25,3 @@ Example of reconstructed images
 
 In the image above, you can see the original post-compressed (56x56 pixel) image on the left and the predicted image on the right. The latent space for the image is of dimension 5.
 
-# Contributing
-
-We hope this repository can serve as a starting point for others interested in building image autoencoders for autonomous vehicle applications. Please feel free to contribute to this project or use it as a reference for your own work. If you have any questions or suggestions, please open an issue on GitHub and we'll do our best to help you out.
