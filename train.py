@@ -26,25 +26,55 @@ tf.get_logger().setLevel('ERROR')
 # /home/kosaraju/anaconda3/envs/tf-gpu/bin/python $DIR/run.py --gamma=
 #---------------------------------------------------------------------
 if __name__ == '__main__':
-    # The directory path where your image data is stored
-    # all_dirs = ['/home/kkosara/AutoDRIVE-Nigel-Dataset/fishhook_30_hz', '/home/kkosara/AutoDRIVE-Nigel-Dataset/skidpad_30_hz', '/home/kkosara/AutoDRIVE-Nigel-Dataset/slalom_30_hz']
+
+    # Directory where the data is stored
     DATA_DIR =  ['Data'] 
+
+    # Output image shape
     OUTPUT_IMAGE_SHAPE = 56
+
+    # Input shape for the model
     INPUT_SHAPE = (OUTPUT_IMAGE_SHAPE, OUTPUT_IMAGE_SHAPE, 1)
+
+    # Filters for the convolutional layers
     FILTERS = [32, 64]
+
+    # Number of convolutional layers
     NUM_CONV_LAYERS = len(FILTERS)
+
+    # Dimension of the dense layer
     DENSE_LAYER_DIM = 16
+
+    # Dimension of the latent space
     LATENT_DIM = 6
+
+    # Beta value for the VAE loss
     BETA = 1.0
+
+    # Batch size for training
     BATCH_SIZE = 128
+
+    # Number of elements to prefetch for performance optimization
     AUTOTUNE = tf.data.AUTOTUNE
+
+    # Learning rate for the optimizer
     LEARNING_RATE = 1e-4
+
+    # Patience for early stopping during training
     PATIENCE = 10
+
+    # Number of epochs for training
     EPOCHS  = 2
+
+    # Split ratio for training and validation data
     TRAIN_SPLIT = 0.8
+
+    # Directory for storing log files
     LOGDIR = os.path.join("logs", datetime.now().strftime("%Y%m%d-%H%M%S"))
+
+    # Flag indicating whether the input images are grayscale
     GRAYSCALE = True
-    
+
     # all_image_paths = get_image_data(DATA_DIR)
     # image_count = len(all_image_paths)
 
