@@ -13,13 +13,13 @@ from tensorflow import GradientTape
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.layers import Layer, Input, Dense, Conv2D, Conv2DTranspose, Flatten, Reshape, MaxPooling2D, UpSampling2D, BatchNormalization
 from tensorflow.keras.models import Model
-from tensorflow.keras.metrics import Mean
+from tensorflow.keras.metrics import Mean, Metric
 from tensorflow.keras.losses import binary_crossentropy
 from tensorflow.keras.backend import random_normal
 from tensorflow.keras.optimizers import Adam, RMSprop
 from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
-
+# from tensorflow.keras import saving
 
 # Sampling layer
 class Sampling(Layer):
@@ -139,9 +139,13 @@ class VAE(Model):
         self.decoder = decoder
         
         # Define metrics to track during training
-        self.total_loss_tracker = Mean(name="total_loss")
-        self.reconstruction_loss_tracker = Mean(name="reconstruction_loss")
+        self.total_loss_tracker = Mean(name="loss")
+        self.reconstruction_loss_tracker = Mean(name="recon_loss")
         self.kl_loss_tracker = Mean(name="kl_loss")
+        # Define metrics to track during validation
+        self.val_total_loss_tracker = Mean(name="val_loss")
+        self.val_reconstruction_loss_tracker = Mean(name="val_recon_loss")
+        self.val_kl_loss_tracker = Mean(name="val_kl_loss")
 
     @property
     def metrics(self):
@@ -149,6 +153,9 @@ class VAE(Model):
             self.total_loss_tracker,
             self.reconstruction_loss_tracker,
             self.kl_loss_tracker,
+            self.val_total_loss_tracker,
+            self.val_reconstruction_loss_tracker,
+            self.val_kl_loss_tracker
         ]
     
     # Define forward pass
@@ -176,7 +183,7 @@ class VAE(Model):
 
             # Compute total loss
             total_loss = reconstruction_loss + kl_loss
-            
+
         # Compute gradients and update weights
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
@@ -186,34 +193,52 @@ class VAE(Model):
         self.reconstruction_loss_tracker.update_state(reconstruction_loss)
         self.kl_loss_tracker.update_state(kl_loss)
         
+
         # Return metrics as dictionary
         return {
             "loss": self.total_loss_tracker.result(),
-            "reconstruction_loss": self.reconstruction_loss_tracker.result(),
+            "recon_loss": self.reconstruction_loss_tracker.result(),
             "kl_loss": self.kl_loss_tracker.result(),
         }
-
-# Function to parse command line arguments
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('--output-image-shape', type=int, default=56)
-    parser.add_argument('--filters', type=int, nargs='+', default=[32, 64])
-    parser.add_argument('--dense-layer-dim', type=int, default=16)
-    parser.add_argument('--latent-dim', type=int, default=6)
-    parser.add_argument('--beta', type=float, default=1.0)
-    parser.add_argument('--batch-size', type=int, default=128)
-    parser.add_argument('--learning-rate', type=float, default=1e-4)
-    parser.add_argument('--patience', type=int, default=10)
-    parser.add_argument('--epochs', type=int, default=2)
-    parser.add_argument('--train-split', type=float, default=0.8)
     
-    args = parser.parse_args()
-    return args
+    def test_step(self, data):
+        # Forward pass through encoder and decoder
+        z_mean, z_log_var, z, reconstruction = self(data)
+        
+        # Compute reconstruction loss
+        reconstruction_loss = reduce_mean(
+            reduce_sum(
+                binary_crossentropy(data, reconstruction), axis=(1, 2)
+            )
+        )
 
+        # Compute KL divergence loss
+        kl_loss = -0.5 * (1 + z_log_var - tf_square(z_mean) - tf_exp(z_log_var))
+        kl_loss = reduce_mean(reduce_sum(kl_loss, axis=1))
+
+        # Compute total loss
+        total_loss = reconstruction_loss + kl_loss
+        self.val_total_loss_tracker.update_state(total_loss)
+        self.val_reconstruction_loss_tracker.update_state(reconstruction_loss)
+        self.val_kl_loss_tracker.update_state(kl_loss)
+
+        return {
+            "loss": self.val_total_loss_tracker.result(),
+            "recon_loss": self.val_reconstruction_loss_tracker.result(),
+            "kl_loss": self.val_kl_loss_tracker.result(),
+        }
+
+    def on_epoch_end(self):
+        self.total_loss_tracker.reset_states()
+        self.reconstruction_loss_tracker.reset_states()
+        self.kl_loss_tracker.reset_states()
+        self.val_total_loss_tracker.reset_states()
+        self.val_reconstruction_loss_tracker.reset_states()
+        self.val_kl_loss_tracker.reset_states()
 
 def get_image_data(all_dirs):
     # List to store all image file paths
+    all_dirs = [all_dirs]
     all_image_paths = []
 
     # Loop through all directories and subdirectories in the data directory
@@ -259,11 +284,59 @@ class VAECallback(Callback):
         plt.savefig(self.log_dir + '\\decoded_images_epoch_{:04d}.png'.format(epoch))
         # plt.show()
 
+# custom metrics
+class TotalLoss(Metric):
+    def __init__(self, name="total_loss", **kwargs):
+        super(TotalLoss, self).__init__(name=name, **kwargs)
+        self.total_loss = self.add_weight(name="tl", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        # Compute the total loss
+        z_mean, z_log_var, z, reconstruction = y_pred
+        reconstruction_loss = reduce_mean(
+            reduce_sum(
+                binary_crossentropy(y_true, reconstruction), axis=(1, 2)
+            )
+        )
+        kl_loss = -0.5 * (1 + z_log_var - tf_square(z_mean) - tf_exp(z_log_var))
+        kl_loss = reduce_mean(reduce_sum(kl_loss, axis=1))
+        total_loss = reconstruction_loss + kl_loss
+
+        self.total_loss.assign(total_loss)
+
+    def result(self):
+        return self.total_loss
+
+    def reset_states(self):
+        # The state of the metric will be reset at the start of each epoch.
+        self.total_loss.assign(0.)
+
+# Function to parse command line arguments
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--image-dir', type=str, help='Path to the image data', default= r'Data')
+    parser.add_argument('--logs-dir', type=str, help='Path to store logs', default=r"logs")
+    parser.add_argument('--output-image-shape', type=int, default=56)
+    parser.add_argument('--filters', type=int, nargs='+', default=[32, 64])
+    parser.add_argument('--dense-layer-dim', type=int, default=16)
+    parser.add_argument('--latent-dim', type=int, default=6)
+    parser.add_argument('--beta', type=float, default=1.0)
+    parser.add_argument('--batch-size', type=int, default=128)
+    parser.add_argument('--learning-rate', type=float, default=1e-4)
+    parser.add_argument('--patience', type=int, default=10)
+    parser.add_argument('--epochs', type=int, default=20)
+    parser.add_argument('--train-split', type=float, default=0.8)
+    
+    args = parser.parse_args()
+    return args
+
 
 if __name__ == '__main__':
     
     args = parse_arguments()
-    all_image_paths = get_image_data([r'C:\Users\kkosara\ImageAutoEncoder\Data'])
+    IMAGE_DIR = args.image_dir
+    LOGS_DIR = args.logs_dir
+    all_image_paths = get_image_data(IMAGE_DIR)
     image_count = len(all_image_paths)
     TRAIN_SPLIT  = args.train_split
     OUTPUT_IMAGE_SHAPE = args.output_image_shape
@@ -275,11 +348,12 @@ if __name__ == '__main__':
     EPOCHS = args.epochs
     LEARNING_RATE = args.learning_rate
 
-    LOGDIR = os.path.join(r"C:\Users\kkosara\ImageAutoEncoder\logs", datetime.now().strftime("%Y%m%d-%H%M%S"))
+    LOGDIR = os.path.join(LOGS_DIR, datetime.now().strftime("%Y%m%d-%H%M%S"))
+    print(LOGDIR)
     os.mkdir(LOGDIR)
 
     df_train = pd.DataFrame({'image_paths': all_image_paths[:int(image_count*TRAIN_SPLIT)]})
-    df_test = pd.DataFrame({'image_paths': all_image_paths[:int(image_count*(1-TRAIN_SPLIT))]})
+    df_test = pd.DataFrame({'image_paths': all_image_paths[int(image_count*TRAIN_SPLIT):]})
 
     train_datagen_args = dict(
         rescale=1.0 / 255,  # Normalize pixel values between 0 and 1
@@ -325,16 +399,24 @@ if __name__ == '__main__':
     decoder = decoder_model(encoder_layers_dim)
     print(decoder.summary())
     vae = VAE(encoder, decoder)
-    vae.compile(optimizer=Adam(learning_rate=LEARNING_RATE))
+    vae.compile(optimizer=Adam(learning_rate=LEARNING_RATE), metrics=[TotalLoss()])
     vae_callback = VAECallback(vae, test_data_generator, LOGDIR)
     tensorboard_cb = TensorBoard(log_dir=LOGDIR, histogram_freq=1)
+    vae_path = os.path.join(LOGDIR, "vae")
+    encoder_path = os.path.join(LOGDIR, "encoder")
+    decoder_path = os.path.join(LOGDIR, "decoder")
+    checkpoint_cb = ModelCheckpoint(filepath=vae_path, save_weights_only=True, verbose=1)
+
+    earlystopping_cb = EarlyStopping(
+        monitor="total_loss",
+        min_delta=1e-2,
+        patience=5,
+        verbose=1,
+    )
+
     history = vae.fit(
         train_data_generator,
         epochs=EPOCHS,
         validation_data=test_data_generator,
-        callbacks=[vae_callback]
+        callbacks=[tensorboard_cb, vae_callback, checkpoint_cb]
     )
-
-    encoder.save(LOGDIR +"/encoder", overwrite=True, save_format=None)
-    decoder.save(LOGDIR +"/decoder", overwrite=True, save_format=None)
-    vae.save(LOGDIR +"/vae", overwrite=True, save_format=None)
