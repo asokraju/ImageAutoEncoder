@@ -265,24 +265,27 @@ class VAECallback(Callback):
         self.log_dir = log_dir
 
     def on_epoch_end(self, epoch, logs=None):
-        # Generate decoded images from the validation input
-        validation_batch = next(iter(self.validation_data))
-        _, _, _, reconstructed_images = self.vae.predict(validation_batch)
+        # check every 10 epochs
+        if epoch % 10 ==0:
+            # Generate decoded images from the validation input
+            validation_batch = next(iter(self.validation_data))
+            _, _, _, reconstructed_images = self.vae.predict(validation_batch)
 
-        # Rescale pixel values to [0, 1]
-        reconstructed_images = np.clip(reconstructed_images, 0.0, 1.0)
+            # Rescale pixel values to [0, 1]
+            reconstructed_images = np.clip(reconstructed_images, 0.0, 1.0)
 
-        # Plot the original and reconstructed images side by side
-        plt.figure(figsize=(10, 2*self.n))  # Adjusted the figure size
-        for i in range(self.n):
-            plt.subplot(self.n, 2, 2*i+1)
-            plt.imshow(validation_batch[i], cmap='gray')
-            plt.axis('off')
-            plt.subplot(self.n, 2, 2*i+2)
-            plt.imshow(reconstructed_images[i], cmap='gray')
-            plt.axis('off')
-        plt.savefig(self.log_dir + '\\decoded_images_epoch_{:04d}.png'.format(epoch))
-        # plt.show()
+            # Plot the original and reconstructed images side by side
+            plt.figure(figsize=(10, 2*self.n))  # Adjusted the figure size
+            for i in range(self.n):
+                plt.subplot(self.n, 2, 2*i+1)
+                plt.imshow(validation_batch[i], cmap='gray')
+                plt.axis('off')
+                plt.subplot(self.n, 2, 2*i+2)
+                plt.imshow(reconstructed_images[i], cmap='gray')
+                plt.axis('off')
+            fig_name = os.path.join(self.log_dir , 'decoded_images_epoch_{:04d}.png'.format(epoch))
+            plt.savefig(fig_name)
+            # plt.show()
 
 # custom metrics
 class TotalLoss(Metric):
@@ -310,7 +313,8 @@ class TotalLoss(Metric):
     def reset_states(self):
         # The state of the metric will be reset at the start of each epoch.
         self.total_loss.assign(0.)
-
+# ----------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------------
 # Function to parse command line arguments
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -403,8 +407,9 @@ if __name__ == '__main__':
     vae_callback = VAECallback(vae, test_data_generator, LOGDIR)
     tensorboard_cb = TensorBoard(log_dir=LOGDIR, histogram_freq=1)
     vae_path = os.path.join(LOGDIR, "vae")
-    encoder_path = os.path.join(LOGDIR, "encoder")
-    decoder_path = os.path.join(LOGDIR, "decoder")
+    os.mkdir(vae_path)
+    # encoder_path = os.path.join(LOGDIR, "encoder")
+    # decoder_path = os.path.join(LOGDIR, "decoder")
     checkpoint_cb = ModelCheckpoint(filepath=vae_path, save_weights_only=True, verbose=1)
 
     earlystopping_cb = EarlyStopping(

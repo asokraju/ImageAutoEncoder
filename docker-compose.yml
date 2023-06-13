@@ -7,5 +7,8 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./:/app
-
+      - ./:/autoencoders
+      - type: bind
+        source: F:/train_data
+        target: /train_data
+    command: ./scripts/run_experiments.sh
