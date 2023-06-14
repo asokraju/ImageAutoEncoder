@@ -5,7 +5,7 @@ do
   do
     for batch_sizes in 128
     do
-      ./scripts/call_experiments.sh $learning_rates $latent_dims $batch_sizes
+      ./scripts/worker.sh $learning_rates $latent_dims $batch_sizes
     done
   done
 done
