@@ -10,8 +10,8 @@ COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install pyyaml
 
-RUN chmod +x scripts/run_experiments.sh
-RUN chmod +x scripts/call_experiments.sh
+RUN chmod +x scripts/master.sh
+RUN chmod +x scripts/worker.sh
 
 # Run app.py when the container launches
 CMD ["python", "train.py"]
