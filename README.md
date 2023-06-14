@@ -56,13 +56,13 @@ You can use the provided Dockerfile and docker-compose.yml files to build and ru
 
 Before starting, you may need to adjust the Dockerfile and docker-compose.yml file according to your specific needs.
 
-In docker-compose.yml file, I have specified two volumes. The first volume maps the current directory (where your docker-compose.yml file is located) on your host machine to the /autoencoders directory in your Docker container.
+In `docker-compose.yml` file, I have specified two volumes. The first volume maps the current directory (where your docker-compose.yml file is located) on your host machine to the `/autoencoders` directory in your Docker container.
 
-The second volume is a bind mount, which binds a directory or file from your host machine to a directory or file in your Docker container. In this case, you are binding the F:/train_data directory on your host machine to the /train_data directory in your Docker container.
+The second volume is a bind mount, which binds a directory or file from your host machine to a directory or file in your Docker container. In this case, you are binding the `F:/train_data` directory on your host machine to the `/train_data` directory in your Docker container.
 
-This line is significant because your training script (running inside the Docker container) expects to find your training data at /train_data. But since Docker containers are isolated from your host machine, you need a way to provide the training data to the script. The bind mount makes this possible by making the F:/train_data directory on your host machine available at /train_data in the Docker container.
+This line is significant because your training script (running inside the Docker container) expects to find your training data at `/train_data`. But since Docker containers are isolated from your host machine, you need a way to provide the training data to the script. The bind mount makes this possible by making the `F:/train_data` directory on your host machine available at `/train_data` in the Docker container.
 
-However, not everyone who uses your scripts will have their training data at F:/train_data. That's why you need to instruct them to change this line according to where their training data is located. They can replace F:/train_data with the path to their training data. If their training data is located at C:/Users/user123/data, for example, they would need to change this line to:
+However, not everyone who uses your scripts will have their training data at `F:/train_data`. That's why you need to instruct them to change this line according to where their training data is located. They can replace `F:/train_data` with the path to their training data. If their training data is located at `C:/Users/user123/data`, for example, they would need to change this line to:
 
 ```
 source: C:/Users/user123/data
@@ -72,7 +72,7 @@ To build and run the Docker container, execute:
 ```
 docker-compose up
 ```
-This will run the master.sh script in the Docker container.
+This will run the `master.sh` script in the Docker container.
 
 This will run the `master.sh` script in the Docker container.
 
