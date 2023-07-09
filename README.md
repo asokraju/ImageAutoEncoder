@@ -8,6 +8,13 @@ This project is the culmination of a three-part series. Check out the following 
 2. [Training Procedures for Variational Autoencoders (Part 2)](https://asokraju.medium.com/variational-autoencoders-training-procedures-part-2-203f760a9315)
 3. [Hyperparameter Tuning with Docker and Bash Scripts (Part 3)](https://asokraju.medium.com/variational-autoencoders-hyperparameter-tuning-with-docker-and-bash-scripts-part-3-51ce05b92df7)
 
+## Results
+Example of reconstructed images 
+
+<img src="https://github.com/asokraju/ImageAutoEncoder/blob/main/results.png" width="500" align="center">
+
+
+In the image above, you can see the original post-compressed (56x56 pixel) image on the left and the predicted image on the right. The latent space for the image is of dimension 5.
 ## Parsing Arguments
 
 The training script accepts several arguments to customize the training process:
